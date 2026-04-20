@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ReadMetrics | Metacognitive Reading Analytics</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, 'Segoe UI', Tahoma, sans-serif; background: #eef2f7; color: #2d3748; font-size: 14px; }
+
+        /* ── HEADER ── */
+        .header { background: linear-gradient(135deg, #1a365d 0%, #2b6cb0 100%); color: white; padding: 10px 20px; display: flex; align-items: center; justify-content: space-between; }
+        .logo { font-size: 1.25rem; font-weight: 700; }
+        .logo span { color: #63b3ed; }
+        .logo-sub { font-size: 0.7rem; opacity: 0.75; }
+        .user-pill { background: rgba(255,255,255,0.15); border-radius: 12px; padding: 4px 12px; font-size: 0.72rem; }
+
+        /* ── TABS ── */
+        .tabs { background: #1e3a5f; display: flex; padding: 0 16px; }
+        .tab { padding: 8px 16px; color: rgba(255,255,255,0.55); cursor: pointer; background: none; border: none; border-bottom: 3px solid transparent; font-size: 0.8rem; font-weight: 500; transition: all 0.15s; }
+        .tab:hover { color: rgba(255,255,255,0.8); }
+        .tab.active { color: white; border-bottom-color: #63b3ed; }
+
+        /* ── VIEWS ── */
+        .view { display: none; padding: 14px 18px; }
+        .view.active { display: block; }
+
+        /* ── CARDS ── */
+        .card { background: white; border-radius: 10px; padding: 16px; box-shadow: 0 1px 5px rgba(0,0,0,0.07); }
+        .card-title { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #718096; margin-bottom: 10px; }
+
+        /* ═══════════════════════════
+           STUDENT VIEW
+        ═══════════════════════════ */
+        .sv-grid { display: grid; grid-template-columns: 1fr 340px; gap: 14px; }
+
+        .passage-title { font-size: 0.95rem; font-weight: 700; color: #1a365d; margin-bottom: 5px; }
+        .tag { display: inline-block; background: #ebf4ff; color: #2b6cb0; font-size: 0.66rem; padding: 2px 7px; border-radius: 3px; margin-right: 4px; }
+
+        /* Audio */
+        .audio-row { display: flex; align-items: center; gap: 8px; background: #ebf4ff; border-radius: 6px; padding: 7px 10px; margin: 12px 0; }
+        .play-btn { background: #2b6cb0; color: white; border: none; border-radius: 50%; width: 30px; height: 30px; font-size: 0.7rem; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .play-btn:hover { background: #1a365d; }
+        .audio-prog { flex: 1; height: 5px; background: #bee3f8; border-radius: 3px; cursor: pointer; }
+        .audio-fill { height: 100%; background: #2b6cb0; border-radius: 3px; pointer-events: none; }
+        .audio-time { font-size: 0.7rem; color: #4a5568; white-space: nowrap; }
+        .speed-btn { border: 1px solid #2b6cb0; color: #2b6cb0; background: white; padding: 2px 6px; border-radius: 3px; font-size: 0.68rem; cursor: pointer; }
+
+        /* Passage text */
+        .passage-text { line-height: 2; font-size: 0.88rem; border: 1px solid #e2e8f0; border-radius: 7px; padding: 12px; max-height: 265px; overflow-y: auto; margin-bottom: 14px; }
+        .passage-text p { margin-bottom: 10px; }
+        .vocab { border-bottom: 2px dotted #2b6cb0; cursor: help; }
+        .hl-yellow { background: #fefcbf; border-radius: 2px; }
+        .active-para { background: #f0f8ff; border-radius: 6px; padding: 6px; }
+        .now-reading { background: #2b6cb0; color: white; font-size: 0.62rem; padding: 1px 5px; border-radius: 3px; margin-left: 4px; vertical-align: middle; }
+
+        /* Strategy toolbar */
+        .section-lbl { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #718096; margin-bottom: 8px; }
+        .strat-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+        .strat { padding: 4px 10px; border-radius: 12px; border: 1.5px solid; background: white; font-size: 0.72rem; font-weight: 500; cursor: pointer; transition: all 0.12s; }
+        .strat:hover { transform: translateY(-1px); opacity: 0.85; }
+        .strat.lit { color: white; }
+        .s-pred { color: #7c3aed; border-color: #7c3aed; } .s-pred.lit { background: #7c3aed; }
+        .s-sum  { color: #059669; border-color: #059669; } .s-sum.lit  { background: #059669; }
+        .s-ctx  { color: #d97706; border-color: #d97706; } .s-ctx.lit  { background: #d97706; }
+        .s-con  { color: #0284c7; border-color: #0284c7; } .s-con.lit  { background: #0284c7; }
+        .s-qst  { color: #dc2626; border-color: #dc2626; } .s-qst.lit  { background: #dc2626; }
+        .s-rrd  { color: #0d9488; border-color: #0d9488; } .s-rrd.lit  { background: #0d9488; }
+
+        .record-btn { width: 100%; padding: 9px; background: #dc2626; color: white; border: none; border-radius: 7px; font-size: 0.8rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 7px; }
+        .record-btn:hover { background: #b91c1c; }
+        .record-btn.recording { background: #b91c1c; animation: rpulse 1s infinite; }
+        @keyframes rpulse { 0%,100%{box-shadow:0 0 0 0 rgba(220,38,38,.4)} 50%{box-shadow:0 0 0 7px rgba(220,38,38,0)} }
+
+        /* Right analytics col */
+        .right-col { display: flex; flex-direction: column; gap: 12px; }
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .stat-box { background: #f7fafc; border-radius: 6px; padding: 8px; text-align: center; }
+        .stat-num { font-size: 1.35rem; font-weight: 700; color: #1a365d; }
+        .stat-lbl { font-size: 0.63rem; color: #718096; margin-top: 2px; }
+
+        /* Trace feed */
+        .trace-card { flex: 1; min-height: 280px; }
+        .trace-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+        .live { display: flex; align-items: center; gap: 4px; font-size: 0.65rem; color: #38a169; font-weight: 600; }
+        .live-dot { width: 7px; height: 7px; background: #38a169; border-radius: 50%; animation: blink 1.5s infinite; }
+        @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.2} }
+        .trace-feed { overflow-y: auto; max-height: 260px; }
+        .te { display: grid; grid-template-columns: 46px 1fr; gap: 5px; padding: 5px 0; border-bottom: 1px solid #f0f4f8; }
+        .te-ts { font-family: monospace; font-size: 0.64rem; color: #a0aec0; padding-top: 2px; }
+        .te-badge { display: inline-block; font-size: 0.63rem; font-weight: 600; padding: 1px 5px; border-radius: 3px; margin-bottom: 2px; }
+        .te-detail { font-size: 0.66rem; color: #4a5568; }
+        .eb-open { background:#bee3f8; color:#1a365d; }
+        .eb-play { background:#d1fae5; color:#065f46; }
+        .eb-pause { background:#fef3c7; color:#92400e; }
+        .eb-rec  { background:#fee2e2; color:#991b1b; }
+        .eb-strat { background:#ede9fe; color:#4c1d95; }
+        .eb-ans  { background:#fce7f3; color:#831843; }
+        .eb-scaf { background:#fef9c3; color:#713f12; }
+        .eb-rrd  { background:#cffafe; color:#164e63; }
+
+        /* Questions */
+        .q-wrap { margin-top: 14px; }
+        .q-title { font-size: 0.88rem; font-weight: 700; color: #1a365d; padding-bottom: 10px; border-bottom: 2px solid #ebf4ff; margin-bottom: 12px; }
+        .q-item { margin-bottom: 14px; padding-bottom: 14px; border-bottom: 1px solid #f0f4f8; }
+        .q-item:last-child { border-bottom: none; }
+        .q-text { font-size: 0.82rem; font-weight: 600; margin-bottom: 8px; }
+        .q-type { font-size: 0.65rem; background: #ebf4ff; color: #2b6cb0; padding: 1px 6px; border-radius: 3px; margin-left: 5px; font-weight: 400; }
+        .opts { display: flex; flex-direction: column; gap: 5px; }
+        .opt { padding: 6px 11px; border: 1.5px solid #e2e8f0; border-radius: 5px; font-size: 0.78rem; cursor: pointer; text-align: left; transition: all 0.1s; background: white; }
+        .opt:hover:not(:disabled) { border-color: #2b6cb0; background: #ebf4ff; }
+        .opt.correct { background: #d1fae5; border-color: #059669; color: #065f46; }
+        .opt.wrong   { background: #fee2e2; border-color: #dc2626; color: #991b1b; }
+        .opt:disabled { cursor: default; }
+
+        /* ═══════════════════════════
+           TEACHER DASHBOARD
+        ═══════════════════════════ */
+        .dash-head { margin-bottom: 14px; }
+        .dash-head h2 { font-size: 1.05rem; color: #1a365d; font-weight: 700; }
+        .dash-head p { font-size: 0.75rem; color: #718096; margin-top: 3px; }
+
+        .sum-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 16px; }
+        .sum-card { background: white; border-radius: 10px; padding: 14px; border-left: 4px solid; box-shadow: 0 1px 4px rgba(0,0,0,0.07); }
+        .sc-val { font-size: 1.8rem; font-weight: 700; line-height: 1; }
+        .sc-lbl { font-size: 0.7rem; color: #718096; margin-top: 4px; }
+        .sc-note { font-size: 0.67rem; margin-top: 5px; }
+        .sc-bl { border-color: #2b6cb0; } .sc-bl .sc-val { color: #1a365d; }
+        .sc-gn { border-color: #38a169; } .sc-gn .sc-val { color: #276749; }
+        .sc-or { border-color: #d97706; } .sc-or .sc-val { color: #92400e; }
+        .sc-rd { border-color: #dc2626; } .sc-rd .sc-val { color: #991b1b; }
+
+        .dash-2col   { display: grid; grid-template-columns: 2fr 1fr; gap: 14px; margin-bottom: 14px; }
+        .dash-2col-eq { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+        .dash-card { background: white; border-radius: 10px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); }
+        .dc-title { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #718096; margin-bottom: 12px; }
+
+        /* Student table */
+        .st-table { width: 100%; border-collapse: collapse; font-size: 0.76rem; }
+        .st-table th { background: #f7fafc; padding: 7px 9px; text-align: left; font-size: 0.64rem; text-transform: uppercase; letter-spacing: 0.04em; color: #718096; border-bottom: 2px solid #e2e8f0; white-space: nowrap; }
+        .st-table td { padding: 7px 9px; border-bottom: 1px solid #f0f4f8; vertical-align: middle; }
+        .st-table tr:hover td { background: #fafbfc; }
+
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.65rem; font-weight: 600; }
+        .b-on  { background: #d1fae5; color: #065f46; }
+        .b-watch { background: #fef3c7; color: #92400e; }
+        .b-support { background: #fee2e2; color: #991b1b; }
+
+        .mbar-wrap { display: flex; align-items: center; gap: 5px; }
+        .mbar { width: 48px; height: 5px; background: #e2e8f0; border-radius: 3px; overflow: hidden; }
+        .mbar-fill { height: 100%; border-radius: 3px; }
+        .mf-g { background: #38a169; } .mf-y { background: #d97706; } .mf-r { background: #dc2626; }
+
+        .flag-list { display: flex; flex-direction: column; gap: 8px; }
+        .flag-item { background: #fffbeb; border-left: 3px solid #d97706; border-radius: 5px; padding: 8px 10px; }
+        .flag-item.critical { background: #fff5f5; border-color: #dc2626; }
+        .fi-name { font-size: 0.76rem; font-weight: 700; }
+        .fi-note { font-size: 0.68rem; color: #4a5568; margin-top: 2px; }
+
+        /* Bar chart */
+        .chart-bar-row { display: flex; align-items: flex-end; gap: 10px; height: 130px; border-bottom: 1px solid #e2e8f0; margin-bottom: 6px; }
+        .cbar-grp { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 3px; height: 100%; }
+        .cbar-val { font-size: 0.62rem; font-weight: 600; color: #4a5568; }
+        .cbar { width: 80%; border-radius: 3px 3px 0 0; }
+        .cbar-lbl { font-size: 0.57rem; color: #718096; text-align: center; word-break: break-word; }
+
+        /* Adaptive log */
+        .ada-table { width: 100%; border-collapse: collapse; font-size: 0.73rem; }
+        .ada-table th { background: #f7fafc; padding: 7px 9px; font-size: 0.64rem; text-transform: uppercase; color: #718096; border-bottom: 2px solid #e2e8f0; text-align: left; }
+        .ada-table td { padding: 7px 9px; border-bottom: 1px solid #f0f4f8; }
+
+        /* ═══════════════════════════
+           TRACE SCHEMA VIEW
+        ═══════════════════════════ */
+        .schema-intro { background: white; border-radius: 10px; padding: 16px; margin-bottom: 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); }
+        .schema-intro h2 { color: #1a365d; font-size: 1rem; margin-bottom: 6px; }
+        .schema-intro p { font-size: 0.78rem; color: #4a5568; line-height: 1.65; }
+        .schema-card { background: white; border-radius: 10px; padding: 16px; margin-bottom: 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); }
+        .schema-card h3 { color: #1a365d; font-size: 0.85rem; font-weight: 700; margin-bottom: 12px; }
+
+        .schema-tbl { width: 100%; border-collapse: collapse; font-size: 0.73rem; }
+        .schema-tbl th { background: #1a365d; color: white; padding: 8px 10px; text-align: left; font-size: 0.68rem; }
+        .schema-tbl td { padding: 8px 10px; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
+        .schema-tbl tr:nth-child(even) td { background: #f7fafc; }
+
+        .gp { display: inline-block; padding: 1px 6px; border-radius: 10px; font-size: 0.63rem; margin: 1px; }
+        .gp-time    { background: #fef3c7; color: #92400e; }
+        .gp-strat   { background: #ede9fe; color: #4c1d95; }
+        .gp-mastery { background: #d1fae5; color: #065f46; }
+        .gp-adapt   { background: #fee2e2; color: #991b1b; }
+
+        .code-block { background: #1e2433; color: #a0aec0; border-radius: 8px; padding: 14px; font-family: 'Courier New', monospace; font-size: 0.7rem; line-height: 1.75; overflow-x: auto; }
+        .ck { color: #63b3ed; } .cv { color: #68d391; } .cn { color: #f6ad55; }
+
+        /* Scaffold popup */
+        .scaf-popup { display: none; position: fixed; bottom: 20px; right: 20px; width: 275px; background: white; border: 2px solid #d97706; border-radius: 10px; padding: 14px; box-shadow: 0 4px 24px rgba(0,0,0,0.18); z-index: 999; }
+        .scaf-popup.show { display: block; animation: slideup 0.25s ease; }
+        @keyframes slideup { from{transform:translateY(12px);opacity:0} to{transform:translateY(0);opacity:1} }
+        .sp-head { font-size: 0.8rem; font-weight: 700; color: #92400e; margin-bottom: 6px; }
+        .sp-body { font-size: 0.75rem; color: #4a5568; line-height: 1.5; margin-bottom: 10px; }
+        .sp-btn { background: #d97706; color: white; border: none; border-radius: 5px; padding: 5px 12px; font-size: 0.73rem; cursor: pointer; }
+
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: #f0f4f8; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e0; border-radius: 3px; }
+    </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="header">
+    <div>
+        <div class="logo">Read<span>Metrics</span></div>
+        <div class="logo-sub">Metacognitive Reading Analytics Platform</div>
+    </div>
+    <div class="user-pill">👤 Alex M. &nbsp;|&nbsp; Grade 4 &nbsp;|&nbsp; Session #14 &nbsp;|&nbsp; 10/14/2024</div>
+</header>
+
+<!-- TABS -->
+<nav class="tabs">
+    <button class="tab active" onclick="switchTab(this,'student')">📖 Student View</button>
+    <button class="tab" onclick="switchTab(this,'teacher')">📊 Teacher Dashboard</button>
+    <button class="tab" onclick="switchTab(this,'schema')">🔍 Trace Data Schema</button>
+</nav>
+
+<!-- ═══════════════════════════════════
+     STUDENT VIEW
+═══════════════════════════════════ -->
+<div id="view-student" class="view active">
+    <div class="sv-grid">
+
+        <!-- LEFT: Passage + Controls -->
+        <div class="card">
+            <div class="passage-title">The Amazing Migration of Monarch Butterflies</div>
+            <div style="margin-bottom:10px;">
+                <span class="tag">Lexile 760L</span>
+                <span class="tag">Grade 4</span>
+                <span class="tag">Science Informational</span>
+                <span class="tag">Week 12 · Day 3</span>
+            </div>
+
+            <!-- Audio Controls -->
+            <div class="audio-row">
+                <button class="play-btn" id="playBtn" onclick="togglePlay()">▶</button>
+                <div class="audio-prog" id="audioProg" onclick="seekAudio(event)">
+                    <div class="audio-fill" id="audioFill" style="width:32%;"></div>
+                </div>
+                <span class="audio-time" id="audioTime">1:05 / 3:24</span>
+                <button class="speed-btn" id="speedBtn" onclick="cycleSpeed()">1x</button>
+            </div>
+
+            <!-- Passage Text -->
+            <div class="passage-text">
+                <p>Every year, millions of monarch butterflies travel thousands of miles from the United States and Canada to the forests of central Mexico. This incredible journey is called <span class="vocab" title="The seasonal movement of animals from one region to another">migration</span>. But what makes this journey truly amazing is that the butterflies making the trip have never traveled the route before.</p>
+
+                <p>Monarch butterflies that hatch in late summer are called the <span class="vocab" title="A generation that lives far longer than others — up to 8 months — allowing them to complete the full migration">"super generation"</span> butterflies. Unlike earlier generations that live only four to six weeks, these butterflies can live up to eight months. They need this extra time to complete their long journey south.</p>
+
+                <p class="active-para">Scientists are still puzzled by how monarchs <span class="vocab" title="Find their way and determine direction while traveling">navigate</span>. Some researchers believe the butterflies use the sun as a compass. Others suggest they sense Earth's <span class="hl-yellow">magnetic field</span>. A tiny biological clock inside the butterfly's brain may help it adjust for the changing position of the sun throughout the day. <span class="now-reading">▶ Reading here</span></p>
+
+                <p>When monarchs finally arrive in Mexico, they cluster together in the branches of oyamel fir trees. The trees become so heavy with butterflies that branches sometimes break. In spring, the journey reverses — the butterflies fly north again, laying eggs on milkweed plants along the way.</p>
+            </div>
+
+            <!-- Strategy Toolbar -->
+            <div class="section-lbl">🧠 Tag a Reading Strategy</div>
+            <div class="strat-row">
+                <button class="strat s-pred" onclick="logStrat('Making a Prediction', this)">🔮 Predict</button>
+                <button class="strat s-sum"  onclick="logStrat('Summarizing', this)">📝 Summarize</button>
+                <button class="strat s-ctx"  onclick="logStrat('Using Context Clues', this)">🔍 Context Clue</button>
+                <button class="strat s-con"  onclick="logStrat('Making a Connection', this)">🔗 Connect</button>
+                <button class="strat s-qst"  onclick="logStrat('Self-Questioning', this)">❓ Question</button>
+                <button class="strat s-rrd"  onclick="logStrat('Rereading', this)">🔄 Reread</button>
+            </div>
+            <button class="record-btn" id="recordBtn" onclick="toggleRecord()">
+                🎙 Record Think-Aloud
+            </button>
+        </div>
+
+        <!-- RIGHT: Analytics Column -->
+        <div class="right-col">
+            <div class="card">
+                <div class="card-title">📈 Session Overview</div>
+                <div class="stats-grid">
+                    <div class="stat-box"><div class="stat-num" id="sTime">2:14</div><div class="stat-lbl">Time on Task</div></div>
+                    <div class="stat-box"><div class="stat-num" id="sStrat">2</div><div class="stat-lbl">Strategies Tagged</div></div>
+                    <div class="stat-box"><div class="stat-num" id="sPause">3</div><div class="stat-lbl">Pause Events</div></div>
+                    <div class="stat-box"><div class="stat-num" id="sTA">1</div><div class="stat-lbl">Think-Alouds</div></div>
+                </div>
+            </div>
+
+            <div class="card trace-card">
+                <div class="trace-top">
+                    <div class="card-title" style="margin:0;">⚡ Live Trace Events</div>
+                    <div class="live"><div class="live-dot"></div>LIVE</div>
+                </div>
+                <div class="trace-feed" id="traceFeed"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Comprehension Questions -->
+    <div class="card q-wrap">
+        <div class="q-title">📋 Comprehension Questions</div>
+        <div id="questionsArea"></div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════
+     TEACHER DASHBOARD
+═══════════════════════════════════ -->
+<div id="view-teacher" class="view">
+    <div class="dash-head">
+        <h2>📊 Class Dashboard — Mrs. Johnson's 4th Grade, Period 2</h2>
+        <p>Monarch Migration Passage &nbsp;|&nbsp; Monday, October 14, 2024 &nbsp;|&nbsp; 9:00–9:30 AM &nbsp;|&nbsp; 8 students active</p>
+    </div>
+
+    <div class="sum-row">
+        <div class="sum-card sc-bl">
+            <div class="sc-val">68%</div>
+            <div class="sc-lbl">Avg. Comprehension Score</div>
+            <div class="sc-note" style="color:#718096;">↑ +5% from last session</div>
+        </div>
+        <div class="sum-card sc-gn">
+            <div class="sc-val">3.4</div>
+            <div class="sc-lbl">Avg. Strategies Per Student</div>
+            <div class="sc-note" style="color:#718096;">Class goal: 4+ per session</div>
+        </div>
+        <div class="sum-card sc-or">
+            <div class="sc-val">3</div>
+            <div class="sc-lbl">Students to Watch</div>
+            <div class="sc-note" style="color:#d97706;">⚠ Review flagged insights</div>
+        </div>
+        <div class="sum-card sc-rd">
+            <div class="sc-val">2</div>
+            <div class="sc-lbl">Needs Intervention</div>
+            <div class="sc-note" style="color:#dc2626;">🚩 Immediate support needed</div>
+        </div>
+    </div>
+
+    <div class="dash-2col">
+        <div class="dash-card">
+            <div class="dc-title">Student Roster — Session Activity</div>
+            <table class="st-table">
+                <thead><tr>
+                    <th>Student</th><th>Strategies Used</th><th>Comprehension</th>
+                    <th>Time on Task</th><th>Think-Alouds</th><th>Status</th>
+                </tr></thead>
+                <tbody id="studentTbody"></tbody>
+            </table>
+        </div>
+        <div class="dash-card">
+            <div class="dc-title">🚩 Instructional Flags</div>
+            <div id="flagList" class="flag-list"></div>
+        </div>
+    </div>
+
+    <div class="dash-2col-eq">
+        <div class="dash-card">
+            <div class="dc-title">Class Strategy Use — This Session</div>
+            <div class="chart-bar-row" id="stratChartDiv"></div>
+            <div style="font-size:0.63rem; color:#718096; text-align:center;">Total tags per strategy type across all students</div>
+        </div>
+        <div class="dash-card">
+            <div class="dc-title">Comprehension Accuracy by Question Type</div>
+            <div id="compChartDiv"></div>
+        </div>
+    </div>
+
+    <div class="dash-card" style="margin-bottom:14px;">
+        <div class="dc-title">🤖 Adaptive Scaffolds Triggered This Session</div>
+        <div id="scaffoldLogDiv"></div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════
+     TRACE DATA SCHEMA
+═══════════════════════════════════ -->
+<div id="view-schema" class="view">
+    <div class="schema-intro">
+        <h2>Trace Data Architecture — ReadMetrics Platform</h2>
+        <p>Every learner interaction generates a structured trace event. The table below documents each event type, the raw data fields captured, and how the event maps to the three core analytics goals from the proposal: <strong>time on task</strong>, <strong>verbalization of reading strategies</strong>, and <strong>degree of mastery</strong>. These events also drive the adaptive scaffolding logic that adjusts instruction in real time for both learner and teacher.</p>
+    </div>
+
+    <div class="schema-card">
+        <h3>Trace Event Types &amp; Analytics Mappings</h3>
+        <table class="schema-tbl">
+            <thead><tr>
+                <th>Event Type</th><th>Trigger</th><th>Fields Captured</th><th>Goal(s)</th><th>Analytics Signal</th>
+            </tr></thead>
+            <tbody id="schemaTbody"></tbody>
+        </table>
+    </div>
+
+    <div class="schema-card">
+        <h3>Sample Raw Event Object — JSON Format</h3>
+        <div class="code-block" id="sampleJson"></div>
+    </div>
+
+    <div class="schema-card">
+        <h3>Adaptive Scaffolding Decision Logic</h3>
+        <table class="schema-tbl">
+            <thead><tr>
+                <th>Condition Detected</th><th>Data Signal</th><th>Scaffold Response</th><th>Presented To</th>
+            </tr></thead>
+            <tbody id="adaptTbody"></tbody>
+        </table>
+    </div>
+</div>
+
+<!-- SCAFFOLD POPUP -->
+<div class="scaf-popup" id="scaffoldPopup">
+    <div class="sp-head">💡 Reading Strategy Hint</div>
+    <div class="sp-body" id="scaffoldMsg"></div>
+    <button class="sp-btn" onclick="dismissScaffold()">Got it!</button>
+</div>
+
+<script>
+// ══════════════════════════════
+// APP STATE
+// ══════════════════════════════
+let isPlaying   = false;
+let isRecording = false;
+let sessionSecs = 134;
+let pauseCount  = 3;
+let stratCount  = 2;
+let taCount     = 1;
+const speedOpts = ['1x','0.75x','1.25x','1.5x'];
+let speedIdx    = 0;
+
+// ══════════════════════════════
+// DATA
+// ══════════════════════════════
+
+// Pre-seeded trace events (session already in progress)
+const seedTrace = [
+    { ts:'09:14:22', badge:'eb-open',  label:'passage_opened',       detail:'Passage #14 loaded · Student: Alex M. · Session start timestamp' },
+    { ts:'09:14:45', badge:'eb-play',  label:'playback_started',     detail:'Audio initiated · Speed: 1x · Engagement confirmed' },
+    { ts:'09:15:03', badge:'eb-pause', label:'playback_paused',      detail:'Paused at 0:18 · Para 1 · Potential metacognitive moment' },
+    { ts:'09:15:04', badge:'eb-rec',   label:'think_aloud_started',  detail:'Recording initiated · Para 1 · Student verbalizing thinking' },
+    { ts:'09:15:28', badge:'eb-strat', label:'strategy_tagged',      detail:'Strategy: Making a Prediction · "I think they might use stars…"' },
+    { ts:'09:15:42', badge:'eb-rec',   label:'think_aloud_completed',detail:'Duration: 38s · Strategy: Prediction · Think-aloud #1 logged' },
+    { ts:'09:15:43', badge:'eb-play',  label:'playback_resumed',     detail:'Resumed at Para 1 · Metacognitive pause: 40s total' },
+    { ts:'09:16:10', badge:'eb-pause', label:'playback_paused',      detail:'Paused at 0:45 · Para 2 · Self-monitoring behavior detected' },
+    { ts:'09:16:22', badge:'eb-rrd',   label:'section_reread',       detail:'Para 2 replayed · Comprehension monitoring / repair strategy' },
+    { ts:'09:16:40', badge:'eb-strat', label:'strategy_tagged',      detail:'Strategy: Using Context Clues · Vocab: "super generation"' },
+    { ts:'09:16:41', badge:'eb-play',  label:'playback_resumed',     detail:'Resumed at Para 2' },
+    { ts:'09:17:05', badge:'eb-pause', label:'playback_paused',      detail:'Paused at 1:05 · Para 3 · Current reading position' },
+];
+
+// Roster for teacher dashboard
+const students = [
+    { name:'Alex M.',   strats:2, comp:75, time:'2:14', ta:1, pauses:3, status:'watch',
+      note:'Active pauser, limited strategies verbalized — session still in progress',
+      sb:[1,0,1,0,0,0] },
+    { name:'Jordan K.', strats:1, comp:25, time:'3:10', ta:0, pauses:1, status:'support',
+      note:'Minimal strategy use · Zero think-alouds recorded · Low comprehension accuracy',
+      sb:[0,0,1,0,0,0] },
+    { name:'Sam T.',    strats:2, comp:50, time:'5:45', ta:1, pauses:3, status:'watch',
+      note:'Pausing regularly but strategy variety limited — Predict &amp; Summarize only',
+      sb:[1,1,0,0,0,0] },
+    { name:'Riley P.',  strats:6, comp:100,time:'9:15', ta:4, pauses:5, status:'on-track',
+      note:'Exemplary — all 6 strategy types used, consistent think-alouds throughout',
+      sb:[1,1,1,1,1,1] },
+    { name:'Casey W.',  strats:1, comp:50, time:'4:30', ta:0, pauses:7, status:'watch',
+      note:'7 pauses but zero think-alouds — pausing without metacognitive verbalization',
+      sb:[0,0,0,1,0,0] },
+    { name:'Morgan L.', strats:4, comp:75, time:'7:20', ta:2, pauses:3, status:'on-track',
+      note:'Solid strategy variety and comprehension · Consistent engagement pattern',
+      sb:[1,1,0,1,1,0] },
+    { name:'Avery B.',  strats:0, comp:25, time:'2:05', ta:0, pauses:0, status:'support',
+      note:'No pauses, no strategies, no think-alouds · Rapid read-through — likely disengaged',
+      sb:[0,0,0,0,0,0] },
+    { name:'Taylor R.', strats:5, comp:75, time:'8:00', ta:3, pauses:4, status:'on-track',
+      note:'Strong reader · Consistent strategy deployment · Good comprehension accuracy',
+      sb:[1,1,1,0,1,1] },
+];
+
+const stratLabels = ['Predict','Summarize','Ctx Clue','Connect','Question','Reread'];
+const stratColors = ['#7c3aed','#059669','#d97706','#0284c7','#dc2626','#0d9488'];
+
+// Comprehension questions
+const questions = [
+    { id:'q1', type:'Literal',
+      text:'1. What is "migration" as the word is used in this passage?',
+      opts:['A type of rare butterfly found in Mexico',
+            'A long journey from one place to another, usually seasonally',
+            'A method butterflies use to find food',
+            'A kind of ancient forest in central Mexico'],
+      correct:1 },
+    { id:'q2', type:'Literal',
+      text:'2. Why are late-summer monarch butterflies called the "super generation"?',
+      opts:['They are larger and stronger than other butterflies',
+            'They fly faster than other generations',
+            'They live much longer and can complete the full migration journey',
+            'They have a special ability to see at night'],
+      correct:2 },
+    { id:'q3', type:'Inferential',
+      text:'3. Based on the passage, what can you infer about why scientists are "still puzzled" by how monarchs navigate?',
+      opts:['Monarchs do not actually migrate — it was a scientific error',
+            'Navigation research is too expensive to pursue',
+            'The navigation system is complex and not yet fully understood',
+            'All scientists agree monarchs use only the sun to navigate'],
+      correct:2 },
+    { id:'q4', type:'Inferential',
+      text:'4. What can you infer about why monarchs cluster together in oyamel fir trees during winter?',
+      opts:['The trees are the only food source for monarchs in Mexico',
+            'Clustering together likely helps them stay warm and conserve energy through winter',
+            'The butterflies wait for other species to arrive before flying north',
+            'Scientists confirmed the trees release a scent that attracts butterflies'],
+      correct:1 },
+];
+
+// Trace schema documentation
+const schemaData = [
+    { type:'passage_opened',       trigger:'Student loads a passage',
+      fields:'student_id, passage_id, session_id, timestamp, grade_level',
+      goals:['gp-time'],
+      signal:'Session start anchor; initializes time-on-task calculation' },
+    { type:'playback_started',     trigger:'Student presses Play',
+      fields:'student_id, timestamp, session_id, playback_position_ms, speed_setting',
+      goals:['gp-time'],
+      signal:'Confirms active engagement; differentiates from passive page load' },
+    { type:'playback_paused',      trigger:'Student manually pauses audio',
+      fields:'student_id, timestamp, paragraph_id, playback_position_ms, pause_duration_ms',
+      goals:['gp-time','gp-strat'],
+      signal:'Strong metacognitive indicator — voluntary pause suggests self-monitoring. Text position adds interpretive context' },
+    { type:'think_aloud_started',  trigger:'Student presses Record Think-Aloud',
+      fields:'student_id, timestamp, paragraph_id, playback_position_ms, session_ta_count',
+      goals:['gp-strat'],
+      signal:'Metacognitive engagement confirmed; student chose to verbalize internal thinking' },
+    { type:'think_aloud_completed',trigger:'Student stops recording',
+      fields:'student_id, timestamp, duration_ms, audio_file_ref, strategy_tagged, transcript_snippet',
+      goals:['gp-strat','gp-adapt'],
+      signal:'Core evidence of strategy verbalization; duration + strategy type reveal depth of metacognitive processing' },
+    { type:'strategy_tagged',      trigger:'Student selects a strategy button',
+      fields:'student_id, timestamp, strategy_type, paragraph_id, think_aloud_id, session_strat_count',
+      goals:['gp-strat','gp-adapt'],
+      signal:'Direct metacognitive evidence; strategy_type reveals which comprehension tools student is deploying' },
+    { type:'section_reread',       trigger:'Student replays or scrolls back to a paragraph',
+      fields:'student_id, timestamp, paragraph_id, reread_count, initiated_by',
+      goals:['gp-strat','gp-time'],
+      signal:'Self-regulation indicator — rereading reflects monitoring-and-repair metacognitive behavior' },
+    { type:'answer_submitted',     trigger:'Student selects a comprehension answer',
+      fields:'student_id, timestamp, question_id, question_type, answer_selected, is_correct, response_time_ms',
+      goals:['gp-mastery','gp-adapt'],
+      signal:'Primary mastery measure; question_type (literal vs. inferential) reveals comprehension depth' },
+    { type:'scaffold_triggered',   trigger:'System presents adaptive support hint',
+      fields:'student_id, timestamp, scaffold_type, trigger_condition, paragraph_id, student_accepted',
+      goals:['gp-adapt'],
+      signal:'Captures adaptive response; student_accepted field shows whether support was engaged' },
+    { type:'session_completed',    trigger:'Student submits all comprehension answers',
+      fields:'student_id, timestamp, total_time_ms, total_pauses, total_strategies, total_think_alouds, comp_score',
+      goals:['gp-time','gp-mastery'],
+      signal:'Aggregated session summary; all metrics combined for instructor dashboard reporting' },
+];
+
+// Adaptive scaffolding rules
+const adaptRules = [
+    { cond:'No pauses after full passage',
+      signal:'playback_paused count = 0 as session nears end',
+      scaffold:'Inline prompt: "Before you answer, try rereading one paragraph."',
+      aud:'Learner (inline)' },
+    { cond:'Frequent pausing without strategy tagging',
+      signal:'3+ pause events AND 0 strategy_tagged events',
+      scaffold:'Strategy reminder: "When you pause, try tagging what you\'re thinking!"',
+      aud:'Learner (tooltip)' },
+    { cond:'No think-alouds by mid-passage',
+      signal:'0 think_aloud_completed events at 50% passage completion',
+      scaffold:'Nudge banner: "Try recording one short think-aloud on any paragraph!"',
+      aud:'Learner (banner)' },
+    { cond:'Incorrect answer — literal question',
+      signal:'answer_submitted: is_correct=false, question_type=literal',
+      scaffold:'Text highlight + "Try rereading this section for key details."',
+      aud:'Learner (inline)' },
+    { cond:'Incorrect answer — inferential question',
+      signal:'answer_submitted: is_correct=false, question_type=inferential',
+      scaffold:'Prompt: "Try connecting what you read to what you already know about this topic."',
+      aud:'Learner (inline)' },
+    { cond:'Student struggling (comp &lt; 50%, strats &lt; 2)',
+      signal:'session_completed: comp_score&lt;0.5 AND total_strategies&lt;2',
+      scaffold:'Dashboard flag: "Recommend small group metacognitive strategy instruction"',
+      aud:'Teacher (dashboard)' },
+    { cond:'Disengaged reader (no pauses, time &lt; 3 min)',
+      signal:'total_pauses=0 AND session_time_ms &lt; 180000',
+      scaffold:'Dashboard flag: "No self-monitoring detected — possible disengagement"',
+      aud:'Teacher (dashboard)' },
+];
+
+// ══════════════════════════════
+// INITIALIZATION
+// ══════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+    buildTraceLog();
+    buildQuestions();
+    buildTeacherDashboard();
+    buildSchema();
+    startTimer();
+});
+
+// ══════════════════════════════
+// TAB SWITCHING
+// ══════════════════════════════
+function switchTab(btn, view) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('view-' + view).classList.add('active');
+}
+
+// ══════════════════════════════
+// STUDENT INTERACTIONS
+// ══════════════════════════════
+function togglePlay() {
+    isPlaying = !isPlaying;
+    document.getElementById('playBtn').textContent = isPlaying ? '⏸' : '▶';
+    if (!isPlaying) {
+        pauseCount++;
+        document.getElementById('sPause').textContent = pauseCount;
+        addTrace('eb-pause','playback_paused',
+            `Paused · Para 3 · Pause event #${pauseCount} · Monitoring for metacognitive follow-up`);
+        // Trigger scaffold if student pauses repeatedly without tagging strategies
+        if (pauseCount >= 5 && stratCount < 2) {
+            setTimeout(() => showScaffold(
+                'You\'ve paused the reading several times — great self-monitoring! Try tagging which reading strategy you\'re using each time you pause.'), 700);
+        }
+    } else {
+        addTrace('eb-play','playback_resumed','Resumed · Para 3');
+    }
+}
+
+function cycleSpeed() {
+    speedIdx = (speedIdx + 1) % speedOpts.length;
+    document.getElementById('speedBtn').textContent = speedOpts[speedIdx];
+    addTrace('eb-play','speed_adjusted',`Playback speed set to ${speedOpts[speedIdx]}`);
+}
+
+function seekAudio(e) {
+    const bar = document.getElementById('audioProg');
+    const pct = Math.min(100, Math.max(0, (e.offsetX / bar.offsetWidth) * 100));
+    document.getElementById('audioFill').style.width = pct + '%';
+    const posSec = Math.round((pct / 100) * 204);
+    const m = Math.floor(posSec / 60), s = posSec % 60;
+    document.getElementById('audioTime').textContent =
+        `${m}:${String(s).padStart(2,'0')} / 3:24`;
+    addTrace('eb-rrd','playback_seeked',
+        `Seeked to ${m}:${String(s).padStart(2,'0')} · Student repositioned in text · section_reread candidate`);
+}
+
+function logStrat(name, btn) {
+    btn.classList.toggle('lit');
+    const added = btn.classList.contains('lit');
+    if (added) {
+        stratCount++;
+        addTrace('eb-strat','strategy_tagged',
+            `Strategy: ${name} · Para 3 · Session strategy count: ${stratCount}`);
+    } else {
+        stratCount = Math.max(0, stratCount - 1);
+    }
+    document.getElementById('sStrat').textContent = stratCount;
+}
+
+function toggleRecord() {
+    isRecording = !isRecording;
+    const btn = document.getElementById('recordBtn');
+    if (isRecording) {
+        btn.classList.add('recording');
+        btn.innerHTML = '⏹ Stop Recording...';
+        addTrace('eb-rec','think_aloud_started','Recording in progress · Para 3 · Student verbalizing');
+    } else {
+        btn.classList.remove('recording');
+        btn.innerHTML = '🎙 Record Think-Aloud';
+        taCount++;
+        document.getElementById('sTA').textContent = taCount;
+        const dur = Math.floor(Math.random() * 25 + 8);
+        addTrace('eb-rec','think_aloud_completed',
+            `Duration: ${dur}s · Think-aloud #${taCount} · Strategy classification in progress`);
+    }
+}
+
+// ══════════════════════════════
+// TRACE LOG
+// ══════════════════════════════
+function buildTraceLog() {
+    const feed = document.getElementById('traceFeed');
+    feed.innerHTML = seedTrace.map(e => traceRow(e.ts, e.badge, e.label, e.detail)).join('');
+    feed.scrollTop = feed.scrollHeight;
+}
+
+function addTrace(badge, label, detail) {
+    const now = new Date();
+    const ts = [now.getHours(), now.getMinutes(), now.getSeconds()]
+        .map(n => String(n).padStart(2,'0')).join(':');
+    const feed = document.getElementById('traceFeed');
+    feed.innerHTML += traceRow(ts, badge, label, detail);
+    feed.scrollTop = feed.scrollHeight;
+}
+
+function traceRow(ts, badge, label, detail) {
+    return `<div class="te">
+        <div class="te-ts">${ts}</div>
+        <div>
+            <span class="te-badge ${badge}">${label}</span>
+            <div class="te-detail">${detail}</div>
+        </div>
+    </div>`;
+}
+
+// ══════════════════════════════
+// COMPREHENSION QUESTIONS
+// ══════════════════════════════
+function buildQuestions() {
+    document.getElementById('questionsArea').innerHTML = questions.map(q => `
+        <div class="q-item">
+            <div class="q-text">${q.text}<span class="q-type">${q.type}</span></div>
+            <div class="opts">
+                ${q.opts.map((o, i) => `
+                    <button class="opt" id="${q.id}-o${i}"
+                        onclick="answerQ('${q.id}',${i},${i === q.correct})">
+                        ${o}
+                    </button>`).join('')}
+            </div>
+        </div>`).join('');
+}
+
+function answerQ(qId, idx, correct) {
+    const qData = questions.find(x => x.id === qId);
+    // Lock all options; highlight correct answer
+    qData.opts.forEach((_, i) => {
+        const el = document.getElementById(`${qId}-o${i}`);
+        el.disabled = true;
+        if (i === qData.correct) el.classList.add('correct');
+    });
+    if (!correct) document.getElementById(`${qId}-o${idx}`).classList.add('wrong');
+
+    addTrace('eb-ans','answer_submitted',
+        `Q: ${qId} · Type: ${qData.type} · Correct: ${correct} · Response logged`);
+
+    if (!correct) {
+        const msg = qData.type === 'Literal'
+            ? 'That wasn\'t quite right. Try rereading the paragraph where that information appeared and look for key details.'
+            : 'This is an inference question — the answer isn\'t stated directly. Try connecting what you read to what you already know.';
+        setTimeout(() => {
+            showScaffold(msg);
+            addTrace('eb-scaf','scaffold_triggered',
+                `Adaptive scaffold: ${qData.type === 'Literal' ? 'Reread prompt' : 'Connection strategy prompt'} · Triggered by wrong answer on ${qId}`);
+        }, 500);
+    }
+}
+
+// ══════════════════════════════
+// SCAFFOLD POPUP
+// ══════════════════════════════
+function showScaffold(msg) {
+    document.getElementById('scaffoldMsg').textContent = msg;
+    document.getElementById('scaffoldPopup').classList.add('show');
+}
+
+function dismissScaffold() {
+    document.getElementById('scaffoldPopup').classList.remove('show');
+    addTrace('eb-scaf','scaffold_dismissed','Student acknowledged scaffold · student_accepted: true');
+}
+
+// ══════════════════════════════
+// SESSION TIMER
+// ══════════════════════════════
+function startTimer() {
+    setInterval(() => {
+        sessionSecs++;
+        const m = Math.floor(sessionSecs / 60);
+        const s = sessionSecs % 60;
+        document.getElementById('sTime').textContent =
+            `${m}:${String(s).padStart(2,'0')}`;
+    }, 1000);
+}
+
+// ══════════════════════════════
+// TEACHER DASHBOARD
+// ══════════════════════════════
+function buildTeacherDashboard() {
+
+    // Student roster table
+    document.getElementById('studentTbody').innerHTML = students.map(s => {
+        const bc = s.comp >= 75 ? 'mf-g' : s.comp >= 50 ? 'mf-y' : 'mf-r';
+        const bs = s.status === 'on-track' ? 'b-on' : s.status === 'watch' ? 'b-watch' : 'b-support';
+        const bl = s.status === 'on-track' ? '✓ On Track' : s.status === 'watch' ? '⚠ Watch' : '🚩 Support';
+        const flag = s.status === 'support' ? ' 🚩' : '';
+        return `<tr>
+            <td><strong>${s.name}</strong>${flag}</td>
+            <td>${s.strats} / 6</td>
+            <td><div class="mbar-wrap">
+                <div class="mbar"><div class="mbar-fill ${bc}" style="width:${s.comp}%"></div></div>
+                ${s.comp}%
+            </div></td>
+            <td>${s.time}</td>
+            <td>${s.ta}</td>
+            <td><span class="badge ${bs}">${bl}</span></td>
+        </tr>`;
+    }).join('');
+
+    // Instructional flags
+    document.getElementById('flagList').innerHTML = students
+        .filter(s => s.status !== 'on-track')
+        .map(s => `
+        <div class="flag-item ${s.status === 'support' ? 'critical' : ''}">
+            <div class="fi-name">${s.name}
+                <span class="badge ${s.status === 'support' ? 'b-support' : 'b-watch'}">
+                    ${s.status === 'support' ? '🚩 Needs Support' : '⚠ Watch'}
+                </span>
+            </div>
+            <div class="fi-note">${s.note}</div>
+        </div>`).join('');
+
+    // Strategy use bar chart
+    const totals = [0,0,0,0,0,0];
+    students.forEach(s => s.sb.forEach((v,i) => totals[i] += v));
+    const mx = Math.max(...totals, 1);
+    document.getElementById('stratChartDiv').innerHTML = totals.map((c,i) => {
+        const h = Math.max(4, Math.round((c / mx) * 100));
+        return `<div class="cbar-grp">
+            <div class="cbar-val">${c}</div>
+            <div class="cbar" style="height:${h}px; background:${stratColors[i]};"></div>
+            <div class="cbar-lbl">${stratLabels[i]}</div>
+        </div>`;
+    }).join('');
+
+    // Comprehension by question type
+    const litAvg = 70, infAvg = 44;
+    document.getElementById('compChartDiv').innerHTML = `
+        <div style="font-size:0.72rem;color:#4a5568;margin-bottom:10px;">Class average accuracy by question type:</div>
+        <div style="display:flex;flex-direction:column;gap:12px;">
+            <div>
+                <div style="display:flex;justify-content:space-between;font-size:0.72rem;margin-bottom:4px;">
+                    <span>📗 Literal Questions</span><strong>${litAvg}%</strong>
+                </div>
+                <div style="height:11px;background:#e2e8f0;border-radius:6px;overflow:hidden;">
+                    <div style="height:100%;width:${litAvg}%;background:#38a169;border-radius:6px;"></div>
+                </div>
+            </div>
+            <div>
+                <div style="display:flex;justify-content:space-between;font-size:0.72rem;margin-bottom:4px;">
+                    <span>🔶 Inferential Questions</span><strong>${infAvg}%</strong>
+                </div>
+                <div style="height:11px;background:#e2e8f0;border-radius:6px;overflow:hidden;">
+                    <div style="height:100%;width:${infAvg}%;background:#d97706;border-radius:6px;"></div>
+                </div>
+            </div>
+        </div>
+        <div style="font-size:0.67rem;color:#718096;margin-top:10px;background:#fffbeb;padding:8px;border-radius:5px;border-left:3px solid #d97706;">
+            📌 ${litAvg - infAvg}% gap between literal and inferential accuracy. Class likely needs explicit instruction on drawing inferences and making text-to-world connections.
+        </div>`;
+
+    // Adaptive scaffold activity log
+    document.getElementById('scaffoldLogDiv').innerHTML = `
+        <table class="ada-table">
+            <thead><tr>
+                <th>Time</th><th>Student</th><th>Trigger Condition</th>
+                <th>Scaffold Delivered</th><th>Outcome</th>
+            </tr></thead>
+            <tbody>
+                <tr><td>09:16:45</td><td>Avery B.</td><td>No pauses detected after full passage</td><td>Reread prompt</td><td>Dismissed without rereading</td></tr>
+                <tr><td>09:17:02</td><td>Jordan K.</td><td>3+ pauses · 0 strategies tagged</td><td>Strategy reminder card</td><td>Tagged 1 strategy after prompt ✓</td></tr>
+                <tr><td>09:18:15</td><td>Casey W.</td><td>7 pauses · 0 think-alouds recorded</td><td>Think-aloud nudge</td><td>No response recorded</td></tr>
+                <tr><td>09:19:30</td><td>Sam T.</td><td>Incorrect answer: Q3 (inferential)</td><td>Connection strategy prompt</td><td>Re-attempted successfully ✓</td></tr>
+                <tr><td>09:20:10</td><td>Avery B.</td><td>comp=25%, strategies=0 at session end</td><td>Teacher dashboard flag</td><td>Flagged for small group follow-up</td></tr>
+            </tbody>
+        </table>`;
+}
+
+// ══════════════════════════════
+// TRACE SCHEMA VIEW
+// ══════════════════════════════
+function buildSchema() {
+
+    // Event schema table
+    document.getElementById('schemaTbody').innerHTML = schemaData.map(e => `
+        <tr>
+            <td><code style="background:#f0f4f8;padding:2px 5px;border-radius:3px;font-size:0.67rem;">${e.type}</code></td>
+            <td>${e.trigger}</td>
+            <td style="font-family:monospace;font-size:0.65rem;color:#4a5568;">${e.fields}</td>
+            <td>${e.goals.map(g => `<span class="gp ${g}">${g.replace('gp-','')}</span>`).join(' ')}</td>
+            <td style="font-size:0.7rem;color:#4a5568;">${e.signal}</td>
+        </tr>`).join('');
+
+    // Sample JSON event
+    document.getElementById('sampleJson').innerHTML =
+`{
+  <span class="ck">"event_type"</span>:             <span class="cv">"strategy_tagged"</span>,
+  <span class="ck">"student_id"</span>:              <span class="cv">"std_00142"</span>,
+  <span class="ck">"session_id"</span>:              <span class="cv">"sess_20241014_0914"</span>,
+  <span class="ck">"passage_id"</span>:              <span class="cv">"passage_014_monarch"</span>,
+  <span class="ck">"timestamp"</span>:               <span class="cv">"2024-10-14T09:15:28.441Z"</span>,
+  <span class="ck">"paragraph_id"</span>:            <span class="cn">1</span>,
+  <span class="ck">"strategy_type"</span>:           <span class="cv">"Making a Prediction"</span>,
+  <span class="ck">"think_aloud_id"</span>:          <span class="cv">"ta_00008"</span>,
+  <span class="ck">"playback_position_ms"</span>:    <span class="cn">18400</span>,
+  <span class="ck">"session_strategy_count"</span>:  <span class="cn">1</span>,
+  <span class="ck">"metadata"</span>: {
+    <span class="ck">"grade_level"</span>:            <span class="cn">4</span>,
+    <span class="ck">"lexile_level"</span>:           <span class="cn">760</span>,
+    <span class="ck">"assignment_week"</span>:         <span class="cn">12</span>,
+    <span class="ck">"teacher_id"</span>:             <span class="cv">"tchr_00021"</span>
+  }
+}`;
+
+    // Adaptive logic table
+    document.getElementById('adaptTbody').innerHTML = adaptRules.map(r => `
+        <tr>
+            <td>${r.cond}</td>
+            <td style="font-family:monospace;font-size:0.67rem;color:#4a5568;">${r.signal}</td>
+            <td>${r.scaffold}</td>
+            <td><span class="gp ${r.aud.includes('Teacher') ? 'gp-adapt' : 'gp-strat'}">${r.aud}</span></td>
+        </tr>`).join('');
+}
+</script>
+</body>
+</html>
